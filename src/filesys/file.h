@@ -5,6 +5,9 @@
 
 struct inode;
 
+
+
+
 /* Opening and closing files. */
 struct file *file_open (struct inode *);
 struct file *file_reopen (struct file *);
@@ -25,5 +28,9 @@ void file_allow_write (struct file *);
 void file_seek (struct file *, off_t);
 off_t file_tell (struct file *);
 off_t file_length (struct file *);
+
+void test_func(struct file *file);
+
+void file_copy(struct file* f1, struct file* f2);
 
 #endif /* filesys/file.h */

@@ -28,5 +28,6 @@ test_main (void)
             i, actual[i]);
 
   munmap (map);
+  
   close (handle);
 }
