@@ -120,9 +120,13 @@ check_sector (struct block *block, block_sector_t sector)
 void
 block_read (struct block *block, block_sector_t sector, void *buffer)
 {
+  //printf("[block_read]test1\n");
   check_sector (block, sector);
+  //printf("[block_read]test2\n");
   block->ops->read (block->aux, sector, buffer);
+  //printf("[block_read]test3\n");
   block->read_cnt++;
+  //printf("[block_read]test4\n");
 }
 
 /* Write sector SECTOR to BLOCK from BUFFER, which must contain
@@ -220,4 +224,3 @@ list_elem_to_block (struct list_elem *list_elem)
           ? list_entry (list_elem, struct block, list_elem)
           : NULL);
 }
-

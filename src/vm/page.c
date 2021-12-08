@@ -27,6 +27,7 @@ struct page* page_init(uint32_t addr, int _mapid)
 void page_init_segment(struct page* p, struct file *file, off_t ofs, uint8_t *upage,
                        uint32_t read_bytes, uint32_t zero_bytes, bool writable)
 {
+  ASSERT(file != NULL);
   p->file = file;
   p->ofs = ofs;
   p->upage = upage;
@@ -35,22 +36,19 @@ void page_init_segment(struct page* p, struct file *file, off_t ofs, uint8_t *up
   p->writable = writable;
 }
 
-struct page* page_search(uint32_t addr)
+struct page* page_search(void * addr)
 {
   struct thread * current = thread_current();
   struct hash *spt = &(current->spt);
   struct hash_iterator hi;
 
-  hash_first(&hi , spt);
-  struct hash_elem * e = hi.elem;
-
-  do{
-    struct page* p = hash_entry(e ,struct page, elem);
+  hash_first (&hi, spt);
+  while (hash_next (&hi))
+  {
+    struct page* p = hash_entry(hash_cur(&hi) ,struct page, elem);
     if(p->va == addr)
       return p;
-
-    e = hash_next(&hi);
-  }while ( e != NULL );
+  }
 
   return NULL;
 }

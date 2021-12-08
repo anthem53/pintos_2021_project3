@@ -174,6 +174,7 @@ page_fault (struct intr_frame *f)
   {
     /* Before load_segment, should check swap table */
     /* if check True, swap in, Else, load segment*/
+    //printf("[PFH] p: %p, p->file: %p\n", p, p->file);
 
     bool success = load_segment(p->file,p->ofs,p->upage,p->read_bytes,p->zero_bytes,p->writable);
     //printf("[page fault func] load_segment : %d\n", success);
@@ -190,17 +191,17 @@ page_fault (struct intr_frame *f)
     //printf("[page fault] f->eax value :  %c\n", *( (char *) (f->eax) )   );
     //printf("[page fault] fault_addr :  %p\n", fault_addr);
     //printf("[page fault] distance :  %d\n", thread_current()->esp_page_ref - fault_addr);
-    /*
-    if (thread_current()->esp_page_ref - fault_addr > (PGSIZE - 1))
-    {
-      send_signal(-1, SIG_WAIT);
-      printf ("%s: exit(%d)\n", thread_current()->name, -1);
-      thread_exit();
-    }
-    */
+
     /* Stack growth*/
-      if ( va == pg_round_down(thread_current()->esp_page_ref) - PGSIZE)
+      //void* esp = user ? f->esp : thread_current()->esp_page_ref;
+      void* esp = f->esp;//user ? f->esp : thread_current()->esp_page_ref;
+      bool on_stack_frame, is_stack_addr;
+      on_stack_frame = (esp <= fault_addr || fault_addr == f->esp - 4 || fault_addr == f->esp - 32);
+      is_stack_addr = (PHYS_BASE - 0x800000 <= fault_addr && fault_addr < PHYS_BASE);
+      if (on_stack_frame && is_stack_addr)
+      //if ( va == pg_round_down(thread_current()->esp_page_ref) - PGSIZE)
       {
+          //printf("[page_fault] stack grow\n");
           thread_current()->esp_page_ref = fault_addr;
           bool success = setup_stack(NULL, va , false);
           if( success == true)

@@ -38,6 +38,7 @@
 #include "filesys/fsutil.h"
 #endif
 #include "vm/frame.h"
+#include "vm/swap.h"
 
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
@@ -128,7 +129,11 @@ main (void)
   filesys_init (format_filesys);
 #endif
 
+ /*  frame.h */
   hash_init(&frame_table, frame_hash_func, frame_less_func,NULL);
+  count_ref = 0;
+  swap_init();
+
   printf ("Boot complete.\n");
 
   /* Run actions specified on kernel command line. */

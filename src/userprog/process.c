@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <bitmap.h>
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
@@ -22,6 +23,8 @@
 #include "userprog/syscall.h"
 
 #include "vm/page.h"
+#include "vm/frame.h"
+#include "vm/swap.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -505,7 +508,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
-  file_seek (file, ofs);
   //test_func(file);
   while (read_bytes > 0 || zero_bytes > 0)
   {
@@ -517,37 +519,53 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
     /* Get a page of memory. */
     uint8_t *kpage = palloc_get_page (PAL_USER);
+    //printf("[load seg] Kpage : %p\n",kpage);
     if (kpage == NULL){
-      /*
+      //printf("[load seg] Before evict , %d\n",page_read_bytes);
       struct frame* f = evict();
       struct page* p = f->p_ref;
+      //printf("[load seg] f count : %d\n",f->count);
+      p->swap_index = swap_out(f->p_ref->va); // swap_disk에 메모리를 올리고,
+      //p->swap_index = swap_out(f->pa); // swap_disk에 메모리를 올리고,
 
-      p->swap_index = swap_out(f->ka); // swap_disk에 메모리를 올리고, bitmap update
-      if(p->swap_index == BITMAP_ERROR)
+      if(p->swap_index == BITMAP_ERROR){
+        //printf("[process.c] p->swap_index == BITMAP_ERROR\n");
         return false;
+      }
       p->is_swapped = true;
       // f->ka ~ f->ka + PGSIZE ==> NULL
-      kpage = f->ka;
-
-      free_frame(f);
+      //printf("[process.c] f->pa: %p\n", f->pa);
       pagedir_clear_page(p->owner->pagedir, p->va);
-      */
+      frame_free(f);
+      kpage = palloc_get_page (PAL_USER);
+      //printf("[process.c] kpage: %p\n", kpage);
+      //printf("[RE_PALLOC] kpage: %p\n", kpage);
 
-      // remove below line
+    }
+
+
+    struct page* ppp = page_search(upage);
+    ASSERT(ppp != NULL);
+
+    if (!install_page (upage, kpage, writable))
+    {
+      palloc_free_page (kpage);
+      // bitmap_control(true, swap_index);
       return false;
     }
 
-    struct page* p = page_search(upage);
-    ASSERT(p != NULL);
-
-    if(p->is_swapped == true)
+    if(ppp->is_swapped == true)
     {
-      /*
-      swap_in(kpage, p->swap_index);
-      */
+      //printf("[load seg]ppp->is_swapped == true\n");
+      //printf("[load seg]ppp->va : %p\n",ppp->va);
+
+      swap_in(ppp->va, ppp->swap_index);
+      //swap_in(kpage, ppp->swap_index);
+      ppp->is_swapped == false;
     }
     else
     {
+      file_seek (file, ofs);
       int file_read_value = file_read (file, kpage, page_read_bytes);
       /* Load this page. */
       if ( file_read_value != (int) page_read_bytes)
@@ -557,15 +575,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
     }
-
     /* Add the page to the process's address space. */
-    if (!install_page (upage, kpage, writable))
-    {
-      palloc_free_page (kpage);
-      // bitmap_control(true, swap_index);
-      return false;
-    }
-    frame_init(kpage, p);
+
+    frame_init(kpage, ppp);
 
     /* Advance. */
     read_bytes -= page_read_bytes;
